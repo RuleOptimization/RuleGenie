@@ -1,0 +1,20 @@
+### Prompt for Final Rule recommendation ###
+
+role: system
+content: |
+	You are a cybersecurity expert specializing in security rules for SIEM (Security Information and Event Management). Assume that the rules are being used in a production environment with a large volume of data.
+
+role: user
+content: |
+	Given a comparison result between two security rules in JSON format containing Better Coverage, Less False Positives Generation, and Faster Execution Time ratings, determine the optimal action using this priority-based logic:
+
+ 	Apply these decision rules in order:
+		If one rule has better ratings in both Coverage and False Positives: Return "Keep [WINNING RULE]"
+		If one rule has better Coverage and the other has better False Positive detection, choose the rule with better coverage and return the result accordingly. For example if Rule 1 has a fewer False positive and Rule 2 has better coverage check which rule works better on coverage to minimize security gaps.
+
+
+        Provide response in format:
+        {
+            "recommended_action": Action
+        }
+        Where Action can be: "Keep Rule 1" or "Keep Rule 2" or "Keep both rules". No extra explanation is needed. Just provide the specified JSON response.

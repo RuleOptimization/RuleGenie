@@ -1,0 +1,50 @@
+### Prompt for Performance and quality optimization ###
+role: system
+content: |
+	You are a cybersecurity expert specializing in security rules for SIEM (Security Information and Event Management). Assume that the rules are being used in a production environment with a large volume of data.
+
+role: user
+content: |
+	For two given detection rules, perform a detailed comparative analysis:
+        1. Coverage Analysis
+        - Data Sources and Event Types:
+            - Scope of Data Sources: Evaluate if the rule applies to various critical data sources (e.g., network logs, endpoint data, IAM, cloud sources),Score: 1 (limited to one source.) to 5 (multi-source, covering all critical data types).
+            - Event Types Breadth: Determine if the rule captures multiple relevant event types (e.g., login attempts, file access, process execution), Score: 1 (single event type) to 5 (broad range of relevant events).
+        - Behavioral Patterns and Context Awareness:
+            - Behavioral Pattern Detection: Assess if the rule identifies behavioral patterns, such as anomalous access or unusual activity over time, Score: 1 (static detection) to 5 (dynamic pattern recognition).
+            - Context Enrichment: Examine if the rule correlates or enriches data for added context (e.g., adding geolocation to IPs, mapping users to departments), Score: 1 (no enrichment) to 5 (highly enriched with relevant context).
+        - Detection Scenario Scope:
+            - Assess if the rule can detect a wide range of scenarios, increasing its applicability to various detection needs, Score: 1 (limited detection scenarios) to 5 (broadly applicable across scenarios).2. False Positive Analysis: Examine threshold logic, baseline methodology, filtering mechanisms, validation steps, context verification, and alert conditions.
+        
+	2. Performance Analysis: Assess search command efficiency, datamodel utilization, statistical operations, join complexity, and resource requirements.
+        Evaluation Criteria:
+            Coverage Winner: Rule showing broader detection scope, better context awareness, and comprehensive pattern detection
+            Performance Winner: Rule with efficient search operations, optimized data handling, and lower computational overhead
+
+        
+	3. False Positive Analysis
+        - Break Down and Understand Rule Conditions
+            - Identify the specific conditions, filters, and events the rule targets. Understand how the rule determines a match (e.g., combination of event types, fields, or thresholds).
+            - List the logs, providers, or command lines the rule monitors (e.g., process creation events, registry modifications, PowerShell scripts).
+            - Understand whether the rule aims to detect specific malicious patterns, behaviors, or anomalous activities.
+        - Evaluate Trade-offs
+            - Narrowly scoped rules reduce noise but may overlook critical threats, creating blind spots. This trade-off is often risky in real-world scenarios.
+            - Broad Coverage: Generalized rules can detect a wider range of threats but may generate more false positives. These must be carefully triaged and optimized.
+        - Avoid Binary Thinking: Rules should neither be overly narrow nor excessively broad. Strive for a balance where precision and coverage are fine-tuned to minimize blind spots while keeping false positives manageable.
+        
+        Evaluation Criteria:
+            False Positive Winner: Rule demonstrating superior threshold handling, validation logic, and precise alert conditions.
+	
+        Respond in exact JSON format:
+        {
+	    "Better Coverage": "Rule 1 or Rule 2",
+            "Faster Execution Time": "Rule 1 or Rule 2",
+            "Less False Positives Generation": "Rule 1 or Rule 2",
+            "Analysis": {
+		"coverage_details": "Analysis of detection capabilities",
+                "performance_details": "Analysis of execution efficiency",
+                "false_positive_details": "Analysis of validation mechanisms"
+            }
+        }
+
+        No extra explanation is needed. Just provide the specified JSON response.

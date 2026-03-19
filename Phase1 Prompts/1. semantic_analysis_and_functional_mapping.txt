@@ -1,0 +1,20 @@
+###Prompt for Semantic Analysis and Functional Dependency###
+
+role: system
+content: | 
+	You are a cybersecurity expert specializing in security rules for SIEM (Security Information and Event Management). Assume that the rules are being used in a production environment with a large volume of data.
+
+role: user
+content: |
+	1. Analyze the new rule against the existing ruleset to determine if it is similar.
+        2. Check if the new rule exactly matches any existing rule in the ruleset.
+        3. Evaluate if the actions and conditions of the new rule are already covered by any existing rules.
+        4. Identify and highlight any overlaps or similarities that would render the new rule unnecessary.
+            
+        Provide response in exact JSON format:
+        {
+            "is_similar": boolean,
+            "similarity_score":[0-100]
+        }
+
+        No extra explanation is needed. Just provide the specified JSON response.

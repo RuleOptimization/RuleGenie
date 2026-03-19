@@ -1,0 +1,41 @@
+###Prompt for Hierarchical dependence recognition###
+
+role: system
+content: |
+	You are a cybersecurity expert specializing in security rules for SIEM (Security Information and Event Management). Assume that the rules are being used in a production environment with a large volume of data.
+
+role: user
+content: |
+	If the rules have different providers with no hierarchical relationship (e.g., Linux vs Windows or Azure vs GCP). Then Category is Independent.
+        If the rule is related to diffrent applications and the progression in not towards generic(e.g., Azure AD vs. O365 ) they do not share hierarchical relationship and should be considered Independent .
+        Examine the actions or outcomes specified in each rule. If the actions are different or the purpose of the rule (e.g., enabling vs. disabling) varies, it's a strong indicator that the rules have distinct scopes and Independent.
+        If either rules show progression from specific to generic. Then Category is Dependent
+        
+        Refer the below two examples for more clarification
+        Example 1:
+        Rule 1: Abnormally High AWS Instances Terminated by User `cloudtrail` eventName=TerminateInstances errorCode=success | bucket span=10m _time | stats count AS instances_terminated by _time userName | eventstats avg(instances_terminated) as total_terminations_avg, stdev(instances_terminated) as total_terminations_stdev | eval threshold_value = 4 | eval isOutlier=if(instances_terminated > total_terminations_avg+(total_terminations_stdev * threshold_value), 1, 0) | search isOutlier=1 AND _time >= relative_time(now(), "-10m@m")| eval num_standard_deviations_away = round(abs(instances_terminated - total_terminations_avg) / total_terminations_stdev, 2) |table _time, userName, instances_terminated, num_standard_deviations_away, total_terminations_avg, total_terminations_stdev | `abnormally_high_aws_instances_terminated_by_user_filter`
+        Rule 2: Abnormally High Number Of Cloud Instances Destroyed | tstats count as instances_destroyed values(All_Changes.object_id) as object_id from datamodel=Change where All_Changes.action=deleted AND All_Changes.status=success AND All_Changes.object_category=instance by All_Changes.user _time span=1h | `drop_dm_object_name("All_Changes")` | eval HourOfDay=strftime(_time, "%H") | eval HourOfDay=floor(HourOfDay/4)*4 | eval DayOfWeek=strftime(_time, "%w") | eval isWeekend=if(DayOfWeek >= 1 AND DayOfWeek <= 5, 0, 1) | join HourOfDay isWeekend [summary cloud_excessive_instances_destroyed_v1] | where cardinality >=16 | apply cloud_excessive_instances_destroyed_v1 threshold=0.005 | rename "IsOutlier(instances_destroyed)" as isOutlier | where isOutlier=1 | eval expected_upper_threshold = mvindex(split(mvindex(BoundaryRanges, -1), ":"), 0) | eval distance_from_threshold = instances_destroyed - expected_upper_threshold | table _time, user, instances_destroyed, expected_upper_threshold, distance_from_threshold, object_id | `abnormally_high_number_of_cloud_instances_destroyed_filter`
+        Output: 
+        { 
+            "category": "Dependent", 
+            "details": "Rule 1 is specific to AWS (TerminateInstances in CloudTrail) while Rule 2 shows progression to generic cloud providers (datamodel=Change for instance deletion), demonstrating evolution from specific to generic provider monitoring"
+        }
+
+        Example 2:
+        Rule 1: GCP Kubernetes cluster scan detection `google_gcp_pubsub_message` data.protoPayload.requestMetadata.callerIp!=127.0.0.1 data.protoPayload.requestMetadata.callerIp!=::1 "data.labels.authorization.k8s.io/decision"=forbid "data.protoPayload.status.message"=PERMISSION_DENIED data.protoPayload.authenticationInfo.principalEmail="system:anonymous" | rename data.protoPayload.requestMetadata.callerIp as src_ip | stats count min(_time) as firstTime max(_time) as lastTime values(data.protoPayload.methodName) as method_name values(data.protoPayload.resourceName) as resource_name values(data.protoPayload.requestMetadata.callerSuppliedUserAgent) as http_user_agent by src_ip data.resource.labels.cluster_name | rename data.resource.labels.cluster_name as cluster_name| `security_content_ctime(lastTime)` | `security_content_ctime(firstTime)`  | `gcp_kubernetes_cluster_scan_detection_filter`
+        Rule 2: Amazon EKS Kubernetes cluster scan detection `aws_cloudwatchlogs_eks` "user.username"="system:anonymous" userAgent!="AWS Security Scanner" | rename sourceIPs\{\} as src_ip | stats count min(_time) as firstTime max(_time) as lastTime values(responseStatus.reason) values(source) as cluster_name values(responseStatus.code) values(userAgent) as http_user_agent values(verb) values(requestURI) by src_ip user.username user.groups{} | `security_content_ctime(lastTime)` | `security_content_ctime(firstTime)` |`amazon_eks_kubernetes_cluster_scan_detection_filter`
+        {
+            "category": "Independent",
+            "details": "Rule 1 is specific to GCP Kubernetes (google_gcp_pubsub_message) while Rule 2 is specific to AWS EKS (aws_cloudwatchlogs_eks). These are different providers with no hierarchical relationship, monitoring their respective Kubernetes implementations"
+        }
+
+        Example 3:
+        Rule 1:Permission Modification using Takeown App | tstats security_content_summariesonly count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes where Processes.process_name = "takeown.exe" Processes.process = "/6" by Processes.parent_process_name Processes.parent_process Processes.process_name Processes.process Processes.dest Processes.user Processes.process_id Processes.process_guid | drop_dm_object_name(Processes) | security_content_ctime(firstTime) | security_content_ctime(lastTime) | permission_modification_using_takeown_app_filter
+        Rule 2: Modify ACL permission To Files Or Folder | tstats security_content_summariesonly values(Processes.process) as process values(Processes.process_id) as process_id count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes where (Processes.process_name = "cacls.exe" OR Processes.process_name = "icacls.exe" OR Processes.process_name = "xcacls.exe") AND Processes.process = "/G" AND (Processes.process = "* everyone:" OR Processes.process = " SYSTEM:" OR Processes.process = " S-1-1-0:*") by Processes.parent_process_name Processes.process_name Processes.dest Processes.user | drop_dm_object_name(Processes) | security_content_ctime(firstTime) | security_content_ctime(lastTime) | modify_acl_permission_to_files_or_folder_filter
+        Output: 
+        { 
+            "category": "Independent",
+            "details": "The rules are not similar because they involve different processes (takeown.exe vs cacls.exe, icacls.exe, xcacls.exe) and different permission modification patterns (specifically mentioning Everyone, SYSTEM, and built-in accounts vs a more general wildcard)"
+        }
+
+        No extra explanation is needed. Just provide the specified JSON response.
