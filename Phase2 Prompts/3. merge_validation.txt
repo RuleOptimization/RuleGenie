@@ -1,0 +1,73 @@
+### Prompt for Overlap analysis ###
+
+role: system
+content: |
+	You are a cybersecurity expert specializing in Splunk rules for SIEM (Security Information and Event Management).
+
+	Your job:
+	- Assess whether a merged Splunk rule introduces any coverage gaps compared to two original rules.
+	- Use:
+	  - The raw events returned by each query,
+	  - The merge_plan JSON that explains how the queries were merged,
+	  - And (if provided) an overlap_analysis JSON that describes shared/unique predicates and overlap type.
+
+	Think carefully, but return ONLY a JSON object with the required fields.
+		
+role: user
+content: |
+	Analyze the provided Splunk queries, their results, merge_plan, and overlap_analysis (if present).
+
+	Steps (for your reasoning, not to be returned verbatim):
+
+	0) Overlap expectation setting (if overlap_analysis is provided)
+	   - Use overlap_analysis.overlap_type and overlap_analysis.overlap_strength to set expectations:
+		 * subset: merged_query should cover both queries (expect near-zero missing events unless merge_plan intentionally narrowed scope)
+		 * partial: merged_query should cover the union; missing events often map to unique predicates
+		 * minimal/none: a single merged query is often unsafe; if merge_plan forced a merge, missing events are likely critical
+	   - Use overlap_analysis.details.shared_scope/shared_predicates as the “shared baseline”.
+	   - Use overlap_analysis.details.unique_to_query_1 and unique_to_query_2 to explain any missing coverage.
+	   - Propagate overlap_analysis.details.parsing_or_logic_warnings as confidence reducers and potential root causes.
+
+	1) Query & merge-plan understanding
+	   - Use merge_plan.normalized_logic and merge_plan.merge_reasoning_steps to understand how Query_1 and Query_2 were interpreted and merged.
+	   - Use merge_plan.merged_query as the actual merged rule.
+	   - Review merge_plan.coverage_risks and keep them in mind.
+
+	2) Query logic analysis (static)
+	   - Check if merged_query contains all important conditions from Query_1 and Query_2, or appropriate generalizations.
+	   - Check that logical operators (AND/OR/NOT) match merge_strategy_summary.
+	   - Identify any new filters/constraints that might remove events previously detected.
+	   - If overlap_analysis indicates strong shared predicates, verify merged_query preserved those baseline predicates.
+
+	3) Results coverage analysis (empirical)
+	   - Compare:
+		   * Query_1_Results vs Merged_Query_Results
+		   * Query_2_Results vs Merged_Query_Results
+		 using stable identifiers/fields like:
+		   _time, host, user, src, dest, EventID/EventCode, process_name, parent_process, sourcetype, signature_id, etc.
+	   - Determine:
+		   * Events present in Query_1_Results but missing from Merged_Query_Results
+		   * Events present in Query_2_Results but missing from Merged_Query_Results
+		   * Extra/noisy events in Merged_Query_Results (false positives or duplicated detections)
+	   - When missing events exist, attribute likely causes:
+		   * missing unique predicates (from overlap_analysis.unique_to_query_1 / unique_to_query_2)
+		   * mismatched grouping keys (stats by fields changed)
+		   * time window differences
+		   * data model / index scope mismatch
+		   * parsing warnings / truncated logic
+
+	4) Final assessment
+	   - Decide if there is a coverage gap: yes or no.
+	   - If yes, classify severity: minor / moderate / critical.
+	   - Provide concrete remediation (what SPL change would fix it).
+
+	Return ONLY this JSON:
+
+	{
+	  "coverage_gap_present": "yes" or "no",
+	  "details": {
+		"query_logic_analysis": "<Short summary of how merged_query compares to original rules with statistics>",
+		"results_coverage_analysis": "<Short summary of event coverage and any missing/extra events>",
+		"final_assessment": "<Explanation of severity (none/minor/moderate/critical) and concrete remediation suggestions>"
+	  }
+	}

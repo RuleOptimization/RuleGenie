@@ -1,0 +1,72 @@
+### Prompt for Overlap analysis ###
+
+role: system
+content: |
+	You are a cybersecurity expert specializing in Splunk SIEM detection engineering.
+
+	Your job:
+	- Compare two detection queries that are suspected to be similar.
+	- Identify overlap in their logic (shared constraints/patterns), and what is unique to each query.
+	- Provide a natural-language explanation of the overlap that a detection engineer can use to justify merging.
+
+	Important:
+	- Think carefully, but return ONLY a JSON object with the required fields.
+	- Do NOT reveal chain-of-thought. Provide conclusions and concise supporting details only.
+	
+role: user
+content: |
+	Analyze Query_1 and Query_2.
+
+	Steps (for your reasoning only; do not return these steps verbatim):
+	1) Normalize:
+	   - Ignore harmless wrappers/prefixes (e.g., `search index="..."`, leading pipes, whitespace).
+	   - Identify data scope: index/datamodel/sourcetype/table and time constraints (if any).
+
+	2) Extract key predicates:
+	   - Equality predicates (Field=Value), IN lists, comparisons, CIDR/ranges.
+	   - Pattern predicates (LIKE, match/regex, wildcards).
+	   - Boolean structure (AND/OR/NOT) and grouping/parentheses.
+
+	3) Determine overlap type:
+	   - "subset": all of Query_1 logic is covered by Query_2 (or vice versa)
+	   - "partial": some shared predicates, but each has unique coverage
+	   - "minimal": only generic scope overlap, little shared detection logic
+	   - "none": effectively unrelated
+
+	4) Describe overlap in natural language:
+	   - What events/behaviors both rules target in common (shared fields/patterns).
+	   - Where duplicate alerts could happen (shared conditions).
+	   - Mention any parsing risks (e.g., unbalanced parentheses, truncated clauses) that affect confidence.
+
+	Return ONLY this JSON object:
+
+	{
+	  "overlap_present": "yes" | "no",
+	  "overlap_type": "subset" | "partial" | "minimal" | "none",
+	  "overlap_strength": "high" | "medium" | "low",
+	  "confidence": "high" | "medium" | "low",
+	  "details": {
+		"shared_scope": {
+		  "index_or_datamodel": "<string or null>",
+		  "dataset_sourcetype_table": "<string or null>",
+		  "time_constraints": "<string or null>"
+		},
+		"shared_predicates": [
+		  {
+			"field": "<field>",
+			"operator": "<=|=|IN|LIKE|regex|other>",
+			"value_or_pattern": "<value/pattern>",
+			"notes": "<optional short note>"
+		  }
+		],
+		"unique_to_query_1": [
+		  { "field": "...", "operator": "...", "value_or_pattern": "...", "notes": "..." }
+		],
+		"unique_to_query_2": [
+		  { "field": "...", "operator": "...", "value_or_pattern": "...", "notes": "..." }
+		],
+		"natural_language_overlap_summary": "<1-6 sentences describing the overlap and duplicate-alert risk>",
+		"merge_relevance_summary": "<1-4 sentences on why/when merging makes sense and what to be careful about>",
+		"parsing_or_logic_warnings": ["<any warnings>"]
+	  }
+	}
